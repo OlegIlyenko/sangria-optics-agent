@@ -23,7 +23,7 @@ libraryDependencies ++= Seq(
   "org.sangria-graphql" %% "sangria" % "1.0.0",
   "com.trueaccord.scalapb" %% "scalapb-json4s" % "0.1.6",
   "com.trueaccord.scalapb" %% "scalapb-runtime" % com.trueaccord.scalapb.compiler.Version.scalapbVersion % "protobuf",
-  "org.scalatest" %% "scalatest" % "3.0.0" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 )
 
 git.remoteRepo := "git@github.com:sangria-graphql/sangria-monix.git"
