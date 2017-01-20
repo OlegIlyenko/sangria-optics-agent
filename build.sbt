@@ -2,6 +2,7 @@ name := "sangria-optics-agent"
 organization := "org.sangria-graphql"
 version := "0.1.0-SNAPSHOT"
 
+
 description := "Sangria apollo-optics agent"
 homepage := Some(url("http://sangria-graphql.org"))
 licenses := Seq("Apache License, ASL Version 2.0" → url("http://www.apache.org/licenses/LICENSE-2.0"))
