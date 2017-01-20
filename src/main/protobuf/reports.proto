@@ -1,0 +1,200 @@
+// reports 0.6.2016.10.11.1
+// from https://github.com/apollostack/optics-agent
+//
+// Copyright (c) 2016 Meteor Development Group, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+package apollo.optics.proto;
+
+option optimize_for = SPEED;
+
+extend google.protobuf.FieldOptions {
+	// Used for documentation purposes only, as protobuf 3 does not support any indication of required/optional.
+	// Unless a field is annotated with [(optional)=true], expect that a correct value is required.
+	bool optional = 50000;
+}
+
+message Id128 {
+	sfixed64 high = 1 [(optional)=false];
+	sfixed64 low = 2 [(optional)=false];
+}
+
+message Timestamp {
+	// Represents seconds of UTC time since Unix epoch
+	// 1970-01-01T00:00:00Z. Must be from from 0001-01-01T00:00:00Z to
+	// 9999-12-31T23:59:59Z inclusive.
+	int64 seconds = 1 [(optional)=false];
+
+	// Non-negative fractions of a second at nanosecond resolution. Negative
+	// second values with fractions must still have non-negative nanos values
+	// that count forward in time. Must be from 0 to 999,999,999
+	// inclusive.
+	int32 nanos = 2 [(optional)=false];
+}
+
+message Error {
+	string message = 1 [(optional)=false];
+}
+
+message Trace {
+	message Details {
+		map<string, bytes> variables = 1 [(optional)=true];
+		string raw_query = 2 [(optional)=true];
+		string operation_name = 3 [(optional)=true];
+	}
+
+	message HTTPInfo {
+		enum Method {
+			UNKNOWN = 0;
+			OPTIONS = 1;
+			GET = 2;
+			HEAD = 3;
+			POST = 4;
+			PUT = 5;
+			DELETE = 6;
+			TRACE = 7;
+			CONNECT = 8;
+			PATCH = 9;
+		}
+		Method method = 1 [(optional)=true];
+		string host = 2 [(optional)=true];
+		string path = 3 [(optional)=true];
+
+		// Should exclude manual blacklist ("Auth" by default)
+		map<string, string> headers = 4 [(optional)=true];
+
+		bool secure = 8 [(optional)=true]; // TLS was used
+		string protocol = 9 [(optional)=true]; // by convention "HTTP/1.0", "HTTP/1.1" or "h2"
+	}
+
+	message Node {
+		oneof id {
+			string field_name = 1;
+			uint32 index = 2;
+		}
+
+		string type = 3 [(optional)=true];
+		string alias = 4 [(optional)=true];
+
+		// relative to the trace's start_time, in ns
+		uint64 start_time = 8 [(optional)=false];
+		uint64 end_time = 9 [(optional)=true];
+
+		repeated Error error = 11 [(optional)=true];
+		repeated Node child = 12 [(optional)=false];
+	}
+
+	Id128 server_id = 1 [(optional)=false];
+	Id128 client_id = 2 [(optional)=true];
+
+	Timestamp start_time = 4 [(optional)=false];
+	Timestamp end_time = 3 [(optional)=false];
+	uint64 duration_ns = 11 [(optional)=false];
+
+	// Parsed, filtered for op (incl. fragments), reserialized
+	string signature = 5 [(optional)=false]; // see docs/signatures.md
+
+	Details details = 6 [(optional)=true];
+
+	string client_name = 7 [(optional)=false];
+	string client_version = 8 [(optional)=false];
+	string client_address = 9 [(optional)=false];
+
+	HTTPInfo http = 10 [(optional)=true];
+
+	Node parse = 12 [(optional)=true];
+	Node validate = 13 [(optional)=true];
+	Node execute = 14 [(optional)=false];
+}
+
+message ReportHeader {
+	string service = 3 [(optional)=true];
+	// eg "host-01.example.com"
+	string hostname = 5 [(optional)=true];
+
+	// eg "optics-agent-js 0.1.0"
+	string agent_version = 6 [(optional)=false];
+	// eg "prod-4279-20160804T065423Z-5-g3cf0aa8" (taken from `git describe --tags`)
+	string service_version = 7 [(optional)=true];
+	// eg "node v4.6.0"
+	string runtime_version = 8 [(optional)=true];
+	// eg "Linux box 4.6.5-1-ec2 #1 SMP Mon Aug 1 02:31:38 PDT 2016 x86_64 GNU/Linux"
+	string uname = 9 [(optional)=true];
+}
+
+message StatsPerClientName {
+	repeated uint64 latency_count = 1 [(optional)=true]; // Duration histogram; see docs/histograms.md
+	repeated uint64 error_count = 2 [(optional)=true]; // Error histogram; see docs/histograms.md
+	map<string, uint64> count_per_version = 3 [(optional)=false];
+}
+
+message FieldStat {
+	string name = 2 [(optional)=false]; // eg "email" for User.email:String!
+	string returnType = 3 [(optional)=false]; // eg "String!" for User.email:String!
+	repeated uint64 latency_count = 8 [(optional)=true]; // Duration histogram; see docs/histograms.md
+}
+
+message TypeStat {
+	string name = 1 [(optional)=false]; // eg "User" for User.email:String!
+	repeated FieldStat field = 2 [(optional)=true];
+}
+
+message StatsPerSignature {
+	map<string, StatsPerClientName> per_client_name = 1 [(optional)=false];
+	repeated TypeStat per_type = 2 [(optional)=false];
+}
+
+// Top-level message type for the server-side traces endpoint
+message TracesReport {
+	ReportHeader header = 1 [(optional)=false];
+	repeated Trace trace = 2 [(optional)=false];
+}
+
+message Field {
+	string name = 2 [(optional)=false]; // eg "email" for User.email:String!
+	string returnType = 3 [(optional)=false]; // eg "String!" for User.email:String!
+}
+
+message Type {
+	string name = 1 [(optional)=false]; // eg "User" for User.email:String!
+	repeated Field field = 2 [(optional)=true];
+}
+
+// Top-level message type for the server-side stats endpoint
+message StatsReport {
+	ReportHeader header = 1 [(optional)=false];
+
+	Timestamp start_time = 8 [(optional)=false];
+	Timestamp end_time = 9 [(optional)=false];
+	uint64 realtime_duration = 10 [(optional)=true];
+
+	map<string, StatsPerSignature> per_signature = 12 [(optional)=false];
+	repeated Type type = 13 [(optional)=true];
+}
+
+message SchemaReport {
+	ReportHeader header = 1 [(optional)=false];
+	string introspection_result = 8 [(optional)=true];
+	repeated Type type = 9 [(optional)=true];
+}
