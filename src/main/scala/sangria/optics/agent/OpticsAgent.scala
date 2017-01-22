@@ -3,12 +3,14 @@ package sangria.optics.agent
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong, AtomicReference}
 
 import org.slf4j.LoggerFactory
+import sangria.execution.Executor
+import sangria.schema.Schema
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
-case class OpticsAgent(config: OpticsConfig)(implicit scheduler: OpticsScheduler, httpClient: OpticsHttpClient, queryNormalizer: OpticsQueryNormalizer, reporter: Reporter) {
-  val logger = LoggerFactory.getLogger(classOf[OpticsAgent])
+case class OpticsAgent[Ctx](schema: Schema[Ctx, _], userContext: Ctx = (), config: OpticsConfig = OpticsConfig.fromEnv)(implicit scheduler: OpticsScheduler, httpClient: OpticsHttpClient, queryNormalizer: OpticsQueryNormalizer, reporter: Reporter, ec: ExecutionContext) {
+  val logger = LoggerFactory.getLogger(classOf[OpticsAgent[Ctx]])
 
   private val enabled = new AtomicBoolean(config.enabled)
 
@@ -22,6 +24,8 @@ case class OpticsAgent(config: OpticsConfig)(implicit scheduler: OpticsScheduler
   // period. We record this so we can get an accurate duration for
   // the report even when the wall clock shifts or drifts.
   private val reportStartHrTime = new AtomicLong(System.nanoTime())
+
+  private val types = Reporter.typesFromSchema(schema)
 
   def enable() =
     if (!enabled.get) {
@@ -41,10 +45,9 @@ case class OpticsAgent(config: OpticsConfig)(implicit scheduler: OpticsScheduler
       enabled.set(false)
     }
 
-  private[sangria] def schedule(): Unit = {
+  private[sangria] def scheduleStatsReport(): Unit =
     if (enabled.get())
       scheduler.scheduleOnce(config.reportInterval, () ⇒ sendStatsReport())
-  }
 
   private[sangria] def sendStatsReport(): Future[Unit] =
     if (enabled.get()) {
@@ -57,16 +60,51 @@ case class OpticsAgent(config: OpticsConfig)(implicit scheduler: OpticsScheduler
 
       val durationHr = currHrTime - oldStartHrTime
 
-      reporter.sendStatsReport(reportData, oldStartTime, currTime, durationHr).recover {
+      reporter.sendStatsReport(types, reportData, oldStartTime, currTime, durationHr, httpClient, config).recover {
         case NonFatal(e) ⇒
-          logger.error("Something went wring during optics metrics reporting", e)
+          logger.error("Something went wrong during optics metrics reporting", e)
 
           ()
-      }(OpticsScheduler.syncExecutionContext)
+      }
     } else {
       Future.successful(())
     }
 
-  // TODO: maybe do it later
-  sendStatsReport()
+  // Sent once on startup. Wait 10 seconds to report the schema. This
+  // does two things:
+  // - help apps start up and serve users faster. don't clog startup
+  //   time with reporting.
+  // - avoid sending a ton of reports from a crash-looping server.
+  private[sangria] def scheduleSchemaReport() =
+    if (enabled.get())
+      scheduler.scheduleOnce(config.schemaReportDelay, () ⇒ sendSchemaReport())
+
+  private[sangria] def sendSchemaReport(): Future[Unit] =
+    if (enabled.get()) {
+      import sangria.marshalling.circe._
+
+      Executor.execute(schema.asInstanceOf[Schema[Ctx, Any]], Reporter.opticsIntrospectionQuery, userContext = userContext).flatMap { introspection ⇒
+        val schemaIntrospection =
+          for {
+            root ← introspection.asObject
+            data ← root("data") flatMap (_.asObject)
+            schema ← data("__schema")
+          } yield schema.noSpaces
+
+        schemaIntrospection match {
+          case Some(s) ⇒ reporter.sendSchemaReport(types, s, httpClient, config)
+          case None ⇒
+            Future.failed(new IllegalStateException("Introspection results have wrong shape"))
+        }
+      }.recover {
+        case NonFatal(e) ⇒
+          logger.error("Something went wrong during optics initial schema reporting", e)
+
+          ()
+      }
+    } else {
+      Future.successful(())
+    }
+
+  scheduleStatsReport()
 }

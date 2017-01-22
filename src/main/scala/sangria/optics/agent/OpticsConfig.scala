@@ -10,30 +10,33 @@ case class OpticsConfig(
   apiKey: String,
   endpointUrl: String = OpticsConfig.DefaultEndpointUrl,
   reportInterval: FiniteDuration = OpticsConfig.DefaultReportInterval,
+  schemaReportDelay: FiniteDuration = OpticsConfig.DefaultSchemaReportDelay,
   enabled: Boolean = OpticsConfig.DefaultEnabled
 ) {
   import OpticsConfig._
 
   def withEnv: Unit = {
-    val newApiKey = sys.props.get(EnvVars.ApiKey) getOrElse apiKey
-    val newEndpointUrl = sys.props.get(EnvVars.EndpointUrl) getOrElse endpointUrl
-    val newEnabled = sys.props.get(EnvVars.ApiKey) map (_.toBoolean) getOrElse enabled
-    val newReportInterval = sys.props.get(EnvVars.ApiKey) map (_.toLong milliseconds) getOrElse reportInterval
+    val newApiKey = sys.env.get(EnvVars.ApiKey) getOrElse apiKey
+    val newEndpointUrl = sys.env.get(EnvVars.EndpointUrl) getOrElse endpointUrl
+    val newEnabled = sys.env.get(EnvVars.Enabled) map (_.toBoolean) getOrElse enabled
+    val newReportInterval = sys.env.get(EnvVars.ReportIntervalMs) map (_.toLong milliseconds) getOrElse reportInterval
+    val newSchemaReportDelay = sys.env.get(EnvVars.SchemaReportDelayMs) map (_.toLong milliseconds) getOrElse schemaReportDelay
 
-    OpticsConfig(newApiKey, newEndpointUrl, newReportInterval, newEnabled)
+    OpticsConfig(newApiKey, newEndpointUrl, newReportInterval, newSchemaReportDelay, newEnabled)
   }
 }
 
 object OpticsConfig {
   val logger = LoggerFactory.getLogger(this.getClass)
 
-  def fromEnv = sys.props.get(EnvVars.ApiKey) match {
+  def fromEnv = sys.env.get(EnvVars.ApiKey) match {
     case Some(apiKey) ⇒
-      val endpointUrl = sys.props.get(EnvVars.EndpointUrl) getOrElse DefaultEndpointUrl
-      val enabled = sys.props.get(EnvVars.ApiKey) map (_.toBoolean) getOrElse DefaultEnabled
-      val reportInterval = sys.props.get(EnvVars.ApiKey) map (_.toLong milliseconds) getOrElse DefaultReportInterval
+      val endpointUrl = sys.env.get(EnvVars.EndpointUrl) getOrElse DefaultEndpointUrl
+      val enabled = sys.env.get(EnvVars.Enabled) map (_.toBoolean) getOrElse DefaultEnabled
+      val reportInterval = sys.env.get(EnvVars.ReportIntervalMs) map (_.toLong milliseconds) getOrElse DefaultReportInterval
+      val schemaReportDelay = sys.env.get(EnvVars.SchemaReportDelayMs) map (_.toLong milliseconds) getOrElse DefaultSchemaReportDelay
 
-      OpticsConfig(apiKey, endpointUrl, reportInterval, enabled)
+      OpticsConfig(apiKey, endpointUrl, reportInterval, schemaReportDelay, enabled)
 
     case None ⇒
       logger.warn(
@@ -48,6 +51,8 @@ object OpticsConfig {
   val MinReportInterval = 10 seconds
 
   val DefaultReportInterval = 1 minute
+  val DefaultSchemaReportDelay = 10 seconds
+
   val DefaultEndpointUrl = "https://optics-report.apollodata.com"
   val DefaultEnabled = true
 
@@ -56,5 +61,6 @@ object OpticsConfig {
     val EndpointUrl = "OPTICS_ENDPOINT_URL"
     val Enabled = "OPTICS_ENABLED"
     val ReportIntervalMs = "OPTICS_REPORT_INTERVAL_MS"
+    val SchemaReportDelayMs = "OPTICS_SCHEMA_REPORT_DELAY_MS"
   }
 }

@@ -21,6 +21,7 @@ scalacOptions ++= {
 
 libraryDependencies ++= Seq(
   "org.sangria-graphql" %% "sangria" % "1.0.0",
+  "org.sangria-graphql" %% "sangria-circe" % "1.0.1", // for introspection results
   "org.slf4j" % "slf4j-api" % "1.7.22",
   "com.trueaccord.scalapb" %% "scalapb-runtime" % com.trueaccord.scalapb.compiler.Version.scalapbVersion % "protobuf",
 

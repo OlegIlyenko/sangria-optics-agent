@@ -9,5 +9,4 @@ class BuildConfigSpec extends WordSpec with Matchers {
       BuildConfig.default.name should include ("sangria")
     }
   }
-
 }

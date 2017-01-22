@@ -3,7 +3,9 @@ package sangria.optics.agent
 import java.io.StringReader
 import java.util.Properties
 
-case class BuildConfig(name: String, version: String)
+case class BuildConfig(name: String, version: String) {
+  def fullName = name + " v" + version
+}
 
 object BuildConfig {
   lazy val default = {
