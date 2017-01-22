@@ -21,8 +21,14 @@ scalacOptions ++= {
 
 libraryDependencies ++= Seq(
   "org.sangria-graphql" %% "sangria" % "1.0.0",
-  "com.trueaccord.scalapb" %% "scalapb-json4s" % "0.1.6",
+  "org.slf4j" % "slf4j-api" % "1.7.22",
   "com.trueaccord.scalapb" %% "scalapb-runtime" % com.trueaccord.scalapb.compiler.Version.scalapbVersion % "protobuf",
+
+  "org.slf4j" % "slf4j-simple" % "1.7.22" % Optional,
+
+  // probably don't need this one
+  "com.trueaccord.scalapb" %% "scalapb-json4s" % "0.1.6",
+
   "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 )
 

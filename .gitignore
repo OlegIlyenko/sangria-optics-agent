@@ -6,3 +6,4 @@ classes
 
 # files
 *.iml
+Foo*.scala
