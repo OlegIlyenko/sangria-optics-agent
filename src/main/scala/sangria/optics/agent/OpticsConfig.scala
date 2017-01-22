@@ -40,8 +40,10 @@ object OpticsConfig {
         "Optics agent disabled: no API key specified. Set the `apiKey` option to `OpticsConfig`, " +
         s"or set the `${EnvVars.ApiKey}` environment variable.")
 
-      OpticsConfig("no-api-key", enabled = false)
+      OpticsConfig(NotProvidedApiKey, enabled = false)
   }
+
+  val NotProvidedApiKey = "no-api-key"
 
   val MinReportInterval = 10 seconds
 

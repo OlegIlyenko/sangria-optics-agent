@@ -24,19 +24,31 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.7.22",
   "com.trueaccord.scalapb" %% "scalapb-runtime" % com.trueaccord.scalapb.compiler.Version.scalapbVersion % "protobuf",
 
+  "com.typesafe.akka" %% "akka-http" % "10.0.1" % Optional,
   "org.slf4j" % "slf4j-simple" % "1.7.22" % Optional,
 
   // probably don't need this one
   "com.trueaccord.scalapb" %% "scalapb-json4s" % "0.1.6",
 
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.1" % Test
 )
 
-git.remoteRepo := "git@github.com:sangria-graphql/sangria-monix.git"
+git.remoteRepo := "git@github.com:OlegIlyenko/sangria-optics-agent.git"
+
+// Code generation part
 
 PB.targets in Compile := Seq(
   scalapb.gen() → (sourceManaged in Compile).value
 )
+
+resourceGenerators in Compile <+= Def.task {
+  val file = (resourceManaged in Compile).value / "META-INF" / "build.properties"
+  val contents = "name=%s\nversion=%s".format(name.value, version.value)
+
+  IO.write(file, contents)
+
+  Seq(file)
+}
 
 // Publishing
 
