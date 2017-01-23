@@ -25,8 +25,20 @@ class OpticsAkkaScheduler(system: ActorSystem) extends OpticsScheduler {
     }
 
   private def handleException(e: Throwable) = {
-    logger.error("Unhandled exception in timer-based scheduler task.", e)
+    logger.error("Unhandled exception in akka scheduler task.", e)
   }
+
+  def scheduleRequestProcessing(fn: () ⇒ Future[Unit]) =
+    Future {
+      try {
+        fn().onComplete {
+          case Failure(e) ⇒ handleException(e)
+          case _ ⇒ // everything is fine
+        }
+      } catch {
+        case NonFatal(e) ⇒ handleException(e)
+      }
+    }
 }
 
 object OpticsAkkaScheduler {
