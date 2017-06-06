@@ -13,6 +13,7 @@ import sangria.optics.util.AstUtil
 import sangria.parser.QueryParser
 import sangria.renderer.SchemaRenderer
 import sangria.validation.TypeInfo
+import sangria.visitor.VisitorCommand
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
@@ -70,12 +71,14 @@ case class OpticsAgent[Ctx](schema: Schema[Ctx, _], userContext: Ctx = (), confi
 
       val durationHr = currHrTime - oldStartHrTime
 
+      scheduleStatsReport()
       reporter.sendStatsReport(types, reportData, oldStartTime, currTime, durationHr, httpClient, config).recover {
         case NonFatal(e) ⇒
           logger.error("Something went wrong during optics metrics reporting", e)
 
           ()
       }
+
     } else {
       Future.successful(())
     }
@@ -158,7 +161,7 @@ case class OpticsAgent[Ctx](schema: Schema[Ctx, _], userContext: Ctx = (), confi
           val queryRes = OpticsQueryMetric(TrieMap.empty, TrieMap.empty)
           val typeInfo = new TypeInfo(schema)
 
-          AstVisitor.visitAst(queryMetric.relevantQuery,
+          AstVisitor.visit(queryMetric.relevantQuery,
             node ⇒ {
               typeInfo.enter(node)
 
@@ -167,20 +170,21 @@ case class OpticsAgent[Ctx](schema: Schema[Ctx, _], userContext: Ctx = (), confi
                   val parent = typeInfo.previousParentType.get
                   val parentMetric = queryRes.perField.getOrElseUpdate(parent.name, TrieMap.empty)
 
+                  val typeName = typeInfo.fieldDef.map(fd => SchemaRenderer.renderTypeName(fd.fieldType))
                   parentMetric.put(
                     field.name,
                     OpticsPerFieldMetric(
-                      SchemaRenderer.renderTypeName(typeInfo.fieldDef.get.fieldType),
+                      typeName.getOrElse("unknownField"),
                       latencyBucket))
                 case _ ⇒ // ignore
               }
 
-              AstVisitorCommand.Continue
+              VisitorCommand.Continue
             },
             node ⇒ {
               typeInfo.leave(node)
 
-              AstVisitorCommand.Continue
+              VisitorCommand.Continue
             })
 
           res.put(normalizedQuery, queryRes)
@@ -273,7 +277,7 @@ case class OpticsAgent[Ctx](schema: Schema[Ctx, _], userContext: Ctx = (), confi
   scheduleStatsReport()
 }
 
-class OpticsRequest(queryMetrics: ConcurrentLinkedQueue[OpticsQueryExecutionMetric], startHrTime: Long)(implicit normalizer: OpticsQueryNormalizer) {
+case class OpticsRequest(queryMetrics: ConcurrentLinkedQueue[OpticsQueryExecutionMetric], startHrTime: Long)(implicit normalizer: OpticsQueryNormalizer) {
   val queryParseTime: TrieMap[ast.Document, TimeMeasurement] = TrieMap.empty
 
   def parse(query: String): Try[ast.Document] = {

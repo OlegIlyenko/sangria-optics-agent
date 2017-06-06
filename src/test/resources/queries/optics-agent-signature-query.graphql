@@ -1,0 +1,15 @@
+query Foo {
+  user(id : "hello") {
+    ... Baz
+    tz
+    aliased: name
+  }
+}
+
+fragment Bar on User {
+  age
+}
+
+fragment Baz on User {
+  dob
+}
