@@ -86,7 +86,7 @@ object OpticsQueryNormalizer {
           val rendererConfig = FixedQueryRenderer.Compact.copy(
             definitionSeparator = "",
             mandatoryLineBreak = " ")
-          
+
           FixedQueryRenderer.render(modifiedQuery, rendererConfig)
         }
         .getOrElse("")

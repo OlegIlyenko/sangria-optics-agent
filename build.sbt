@@ -7,8 +7,8 @@ description := "Sangria apollo-optics agent"
 homepage := Some(url("http://sangria-graphql.org"))
 licenses := Seq("Apache License, ASL Version 2.0" → url("http://www.apache.org/licenses/LICENSE-2.0"))
 
-scalaVersion := "2.11.7"
-crossScalaVersions := Seq("2.11.8", "2.11.7")
+scalaVersion := "2.12.1"
+crossScalaVersions := Seq("2.11.8", "2.12.1")
 
 scalacOptions ++= Seq("-deprecation", "-feature")
 
