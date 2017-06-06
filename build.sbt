@@ -7,8 +7,8 @@ description := "Sangria apollo-optics agent"
 homepage := Some(url("http://sangria-graphql.org"))
 licenses := Seq("Apache License, ASL Version 2.0" → url("http://www.apache.org/licenses/LICENSE-2.0"))
 
-scalaVersion := "2.12.1"
-crossScalaVersions := Seq("2.11.8", "2.12.1")
+scalaVersion := "2.11.7"
+crossScalaVersions := Seq("2.11.8", "2.11.7")
 
 scalacOptions ++= Seq("-deprecation", "-feature")
 
@@ -20,7 +20,7 @@ scalacOptions ++= {
 }
 
 libraryDependencies ++= Seq(
-  "org.sangria-graphql" %% "sangria" % "1.0.0",
+  "org.sangria-graphql" %% "sangria" % "1.2.0",
   "org.sangria-graphql" %% "sangria-circe" % "1.0.1", // for introspection results
   "org.slf4j" % "slf4j-api" % "1.7.22",
   "com.trueaccord.scalapb" %% "scalapb-runtime" % com.trueaccord.scalapb.compiler.Version.scalapbVersion % "protobuf",
